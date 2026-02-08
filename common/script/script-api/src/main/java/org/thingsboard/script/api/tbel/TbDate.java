@@ -600,34 +600,62 @@ public class TbDate implements Serializable, Cloneable {
             }
         }
     }
-    private static Instant getInstant_RFC_1123(String s) {
-        // assuming RFC-1123 value "Tue, 3 Jun 2008 11:05:30 GMT"
-        // assuming RFC-1123 value "Tue, 3 Jun 2008 11:05:30 GMT-02:00"
-        // assuming RFC-1123 value "Tue, 3 Jun 2008 11:05:30 -0200"
-        DateTimeFormatter formatter = DateTimeFormatter.RFC_1123_DATE_TIME;
-        try {
-            return Instant.from(formatter.parse(s));
-        } catch (DateTimeParseException ex) {
-            try {
-                return getInstantWithLocalZoneOffsetId_RFC_1123(s);
-            } catch (final DateTimeParseException e) {
-                throw new ConversionException("Cannot parse value [" + s + "] as instant");
+private static Instant getInstant_RFC_1123(String s) {
+    DateTimeFormatter formatter = DateTimeFormatter.RFC_1123_DATE_TIME;
+    String base = normalizeRfc1123DayComma(s).trim();
+
+    try {
+        int tzSeconds = 0;
+        
+        // Pattern 1: Fuseau avec secondes - EXACTEMENT 6 chiffres (ex: +043056 → +0430)
+        java.util.regex.Pattern tzPattern6 = java.util.regex.Pattern.compile("([+-])(\\d{6})(?!\\d)");
+        java.util.regex.Matcher matcher6 = tzPattern6.matcher(base);
+        
+        if (matcher6.find()) {
+            String sign = matcher6.group(1);
+            String digits = matcher6.group(2);
+            tzSeconds = Integer.parseInt(digits.substring(4, 6));
+            if (sign.equals("-")) {
+                tzSeconds = -tzSeconds;
+            }
+            base = matcher6.replaceFirst(sign + digits.substring(0, 4));
+        } else {
+            // Pattern 2: Fuseau incomplet - EXACTEMENT 2 chiffres (ex: -03 → -0300)
+            java.util.regex.Pattern tzPattern2 = java.util.regex.Pattern.compile("([+-])(\\d{2})(?!\\d)");
+            java.util.regex.Matcher matcher2 = tzPattern2.matcher(base);
+            if (matcher2.find()) {
+                base = matcher2.replaceFirst("$1$200");
             }
         }
+        
+        // Ne PAS ajouter GMT automatiquement - laisser le parsing échouer si pas de fuseau
+        // Le fallback gèrera les dates sans fuseau comme temps local
+        
+        Instant instant = Instant.from(formatter.parse(base));
+        instant = instant.minusSeconds(tzSeconds);
+        
+        return instant;
+        
+    } catch (DateTimeParseException ex) {
+        try {
+            return getInstantWithLocalZoneOffsetId_RFC_1123(s);
+        } catch (final DateTimeParseException e) {
+            throw new ConversionException("Cannot parse value [" + s + "] as instant");
+        }
     }
-private static String normalizeRfc1123DayComma(String value) {
-    String v = value.trim();
-    // If day-of-week is present but comma is missing: "Sat 3 Jun 2023..." -> "Sat, 3 Jun 2023..."
-    // We detect a 3-letter day name followed by a space and a digit.
-    if (v.length() >= 5 && Character.isLetter(v.charAt(0)) && Character.isDigit(v.charAt(4)) == false) {
-        // safer regex-based approach:
-        v = v.replaceFirst("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\s+", "$1, ");
-    }
-    return v;
 }
 
+private static String normalizeRfc1123DayComma(String value) {
+    String v = value.trim();
+    return v.replaceFirst("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\s+", "$1, ");
+}
+
+
 private static Instant getInstantWithLocalZoneOffsetId_RFC_1123(String value) {
-    String base = normalizeRfc1123DayComma(value);
+    String base = value.trim(); // NE PAS rappeler normalizeRfc1123DayComma car déjà fait
+    
+    // Nettoyer aussi ici au cas où
+    base = base.replaceAll("([+-])(\\d{2})(\\d{2})(\\d{2})(?=\\s|$)", "$1$2$3");
 
     // First try defaulting to GMT
     String gmtValue = base + " GMT";
