@@ -44,7 +44,7 @@ jobs:
 
       # 2) Tests unitaires
       - name: Run unit tests
-        run: mvn -B test
+        run: mvn -B -Duser.timezone=UTC test
 
       # 3) Lancement ThingsBoard (Docker)
       - name: Start ThingsBoard (docker compose)
