@@ -615,14 +615,32 @@ public class TbDate implements Serializable, Cloneable {
             }
         }
     }
-    private static Instant getInstantWithLocalZoneOffsetId_RFC_1123(String value) {
-        String s = value.trim() + " GMT";
-        Instant instant = Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(s));
-        ZoneId systemZone = ZoneId.systemDefault(); // my timezone
-        String id =  systemZone.getRules().getOffset(instant).getId();
-        value =  value.trim() + " " + id.replaceAll(":", "");
-        return Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(value));
+private static String normalizeRfc1123DayComma(String value) {
+    String v = value.trim();
+    // If day-of-week is present but comma is missing: "Sat 3 Jun 2023..." -> "Sat, 3 Jun 2023..."
+    // We detect a 3-letter day name followed by a space and a digit.
+    if (v.length() >= 5 && Character.isLetter(v.charAt(0)) && Character.isDigit(v.charAt(4)) == false) {
+        // safer regex-based approach:
+        v = v.replaceFirst("^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\s+", "$1, ");
     }
+    return v;
+}
+
+private static Instant getInstantWithLocalZoneOffsetId_RFC_1123(String value) {
+    String base = normalizeRfc1123DayComma(value);
+
+    // First try defaulting to GMT
+    String gmtValue = base + " GMT";
+    Instant instant = Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(gmtValue));
+
+    // Then convert to system offset (keeps old behavior)
+    ZoneId systemZone = ZoneId.systemDefault();
+    String id = systemZone.getRules().getOffset(instant).getId(); // e.g. "+02:00"
+    String rfcOffset = id.replace(":", ""); // -> "+0200"
+
+    String withOffset = base + " " + rfcOffset;
+    return Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(withOffset));
+}
 
     private static Instant parseInstant(String s, String pattern, Locale locale, ZoneId zoneId) {
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(pattern, locale);
