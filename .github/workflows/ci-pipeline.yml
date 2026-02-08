@@ -18,7 +18,7 @@ name: ThingsBoard CI Pipeline
 
 on:
   push:
-    branches: [ master, main ]git status
+    branches: [ master, main ]
   pull_request:
     branches: [ master, main ]
 
