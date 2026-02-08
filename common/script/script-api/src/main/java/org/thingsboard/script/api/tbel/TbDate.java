@@ -638,7 +638,7 @@ private static Instant getInstant_RFC_1123(String s) {
         
     } catch (DateTimeParseException ex) {
         try {
-            return getInstantWithLocalZoneOffsetId_RFC_1123(s);
+            return getInstantWithLocalZoneOffsetId_RFC_1123(base);
         } catch (final DateTimeParseException e) {
             throw new ConversionException("Cannot parse value [" + s + "] as instant");
         }
