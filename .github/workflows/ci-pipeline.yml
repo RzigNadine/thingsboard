@@ -38,8 +38,10 @@ jobs:
           cache: maven
 
       # 1) Compilation
-      - name: Build (compile)
-        run: mvn -B -DskipTests clean compile
+      - name: Build (package)
+        run: mvn -B -DskipTests clean package
+        run: mvn -B -DskipTests -DskipITs clean package
+
 
       # 2) Tests unitaires
       - name: Run unit tests
