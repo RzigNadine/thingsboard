@@ -609,49 +609,59 @@ private static final DateTimeFormatter RFC_1123_LOCAL_DT = new DateTimeFormatter
         .toFormatter(Locale.ENGLISH);
 
 private static Instant getInstant_RFC_1123(String s) {
+    DateTimeFormatter formatter = DateTimeFormatter.RFC_1123_DATE_TIME;
     String base = normalizeRfc1123DayComma(s).trim();
 
-    // 1) Normaliser les offsets non standards en fin de string
-
-    int tzSeconds = 0;
-
-    // Cas "+043056" -> "+0430" et on garde "56" secondes à appliquer après
-    java.util.regex.Matcher m6 = java.util.regex.Pattern
-            .compile("([+-])(\\d{2})(\\d{2})(\\d{2})\\s*$")
-            .matcher(base);
-    if (m6.find()) {
-        String sign = m6.group(1);
-        int sec = Integer.parseInt(m6.group(4));
-        tzSeconds = sign.equals("-") ? -sec : sec;
-        base = base.substring(0, m6.start()) + sign + m6.group(2) + m6.group(3);
-    } else {
-        // Cas "-03" -> "-0300"
-        java.util.regex.Matcher m2 = java.util.regex.Pattern
-                .compile("([+-])(\\d{2})\\s*$")
-                .matcher(base);
-        if (m2.find()) {
-            base = base.substring(0, m2.start()) + m2.group(1) + m2.group(2) + "00";
-        }
+    // 1) Si AUCUN timezone à la fin => interpréter comme heure LOCALE
+    // Ex: "Sat, 3 Jun 2023 11:05:30"
+    boolean hasTz = base.matches(".*\\s(?:GMT|UT|UTC|Z|[+-]\\d{2}|[+-]\\d{4}|[+-]\\d{6}|[A-Za-z]{3,})$");
+    if (!hasTz) {
+        DateTimeFormatter noTzFmt = DateTimeFormatter.ofPattern("EEE, d MMM uuuu HH:mm:ss", Locale.ENGLISH);
+        LocalDateTime ldt = LocalDateTime.parse(base, noTzFmt);
+        return ldt.atZone(ZoneId.systemDefault()).toInstant();
     }
-
-    // 2) Détecter si une timezone est présente
-    boolean hasZone = base.matches(".*\\b(GMT|UT|Z)\\b\\s*$")
-            || base.matches(".*[+-]\\d{4}\\s*$")
-            || base.matches(".*[+-]\\d{2}:\\d{2}\\s*$");
 
     try {
-        if (hasZone) {
-            Instant instant = Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(base));
-            return instant.minusSeconds(tzSeconds);
+        int tzSeconds = 0;
+
+        // Pattern 1: Fuseau avec secondes: EXACTEMENT 6 chiffres (ex: +043056 => +0430, puis -56s)
+        java.util.regex.Pattern tzPattern6 = java.util.regex.Pattern.compile("([+-])(\\d{6})(?!\\d)");
+        java.util.regex.Matcher matcher6 = tzPattern6.matcher(base);
+
+        if (matcher6.find()) {
+            String sign = matcher6.group(1);
+            String digits = matcher6.group(2);
+            tzSeconds = Integer.parseInt(digits.substring(4, 6));
+            if (sign.equals("-")) {
+                tzSeconds = -tzSeconds;
+            }
+            base = matcher6.replaceFirst(sign + digits.substring(0, 4));
         } else {
-            // 3) Sans timezone -> interpréter comme date/heure LOCALE
-            LocalDateTime ldt = LocalDateTime.parse(base, RFC_1123_LOCAL_DT);
-            return ldt.atZone(ZoneId.systemDefault()).toInstant();
+            // Pattern 2: Fuseau incomplet - EXACTEMENT 2 chiffres (ex: -03 => -0300)
+            java.util.regex.Pattern tzPattern2 = java.util.regex.Pattern.compile("([+-])(\\d{2})(?!\\d)");
+            java.util.regex.Matcher matcher2 = tzPattern2.matcher(base);
+            if (matcher2.find()) {
+                base = matcher2.replaceFirst("$1$200");
+            }
         }
+
+        Instant instant = Instant.from(formatter.parse(base));
+        if (tzSeconds != 0) {
+            instant = instant.minusSeconds(tzSeconds);
+        }
+        return instant;
+
     } catch (DateTimeParseException ex) {
-        throw new ConversionException("Cannot parse value [" + s + "] as instant", ex);
+        // Fallback: garde ton ancien comportement si parsing standard échoue
+        try {
+            return getInstantWithLocalZoneOffsetId_RFC_1123(base);
+        } catch (final DateTimeParseException e) {
+            throw new ConversionException("Cannot parse value [" + s + "] as instant");
+        }
     }
 }
+
+
 
 
 private static String normalizeRfc1123DayComma(String value) {
