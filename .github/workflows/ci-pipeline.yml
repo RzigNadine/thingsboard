@@ -20,8 +20,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       
-      - name: Build and test rule-engine-api module
+      - name: Build minimal dependencies
+        run: mvn clean install -DskipTests -Dlicense.skip=true -pl common,dao -am
+      
+      - name: Build and test rule-engine-api
         run: |
           cd rule-engine
-          mvn clean install -DskipTests -Dlicense.skip=true -pl rule-engine-api -am
+          mvn install -DskipTests -Dlicense.skip=true -pl rule-engine-api
           mvn test -pl rule-engine-api -Duser.timezone=UTC
