@@ -28,3 +28,6 @@ jobs:
           cd rule-engine
           mvn install -DskipTests -Dlicense.skip=true -pl rule-engine-api
           mvn test -pl rule-engine-api -Duser.timezone=UTC
+      
+      - name: Test script-api module
+        run: mvn test -pl common/script/script-api -Duser.timezone=UTC
