@@ -20,8 +20,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       
-      - name: Build ThingsBoard
-        run: mvn clean install -DskipTests -Dlicense.skip=true
-      
-      - name: Run rule-engine-api module tests
-        run: mvn test -pl rule-engine/rule-engine-api -Duser.timezone=UTC
+      - name: Build and test rule-engine-api module
+        run: |
+          cd rule-engine
+          mvn clean install -DskipTests -Dlicense.skip=true -pl rule-engine-api -am
+          mvn test -pl rule-engine-api -Duser.timezone=UTC
