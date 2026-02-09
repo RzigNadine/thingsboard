@@ -22,10 +22,3 @@ jobs:
       
       - name: Run rule-engine-api module tests
         run: cd rule-engine && mvn test -pl rule-engine-api -Duser.timezone=UTC
-      
-      - name: Upload test reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: surefire-reports
-          path: '**/target/surefire-reports/'
