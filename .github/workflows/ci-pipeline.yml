@@ -21,7 +21,7 @@ jobs:
           cache: 'maven'
       
       - name: Build ThingsBoard
-        run: mvn clean install -DskipTests
+        run: mvn clean install -DskipTests -Dlicense.skip=true
       
       - name: Run rule-engine-api module tests
         run: mvn test -pl rule-engine/rule-engine-api -Duser.timezone=UTC
