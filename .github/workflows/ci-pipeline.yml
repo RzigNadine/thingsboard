@@ -1,15 +1,18 @@
 name: CI: compile + unit tests + minimal launch
 
-on:
+"on":
   push:
-    branches: [ master, main ]
+    branches:
+      - master
+      - main
   pull_request:
-    branches: [ master, main ]
+    branches:
+      - master
+      - main
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -18,7 +21,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
           cache: maven
 
       - name: Compile ThingsBoard
