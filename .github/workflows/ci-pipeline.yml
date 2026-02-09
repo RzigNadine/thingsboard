@@ -7,7 +7,7 @@ on:
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
       - name: Checkout source
@@ -20,14 +20,11 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
       
-      - name: Build minimal dependencies
-        run: mvn clean install -DskipTests -Dlicense.skip=true -pl common,dao -am
+      - name: Build ThingsBoard
+        run: mvn clean install -DskipTests -Dlicense.skip=true
       
-      - name: Build and test rule-engine-api
-        run: |
-          cd rule-engine
-          mvn install -DskipTests -Dlicense.skip=true -pl rule-engine-api
-          mvn test -pl rule-engine-api -Duser.timezone=UTC
+      - name: Run common module tests
+        run: mvn test -pl common -Duser.timezone=UTC
       
-      - name: Test script-api module
-        run: mvn test -pl common/script/script-api -Duser.timezone=UTC
+      - name: Run rule-engine-api module tests
+        run: mvn test -pl rule-engine/rule-engine-api -Duser.timezone=UTC
